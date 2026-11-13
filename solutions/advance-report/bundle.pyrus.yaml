@@ -1,0 +1,358 @@
+# Публикация из корня репозитория; добавьте --dry-run для пробного запуска.
+# pyrus publish .\solutions\advance-report\bundle.pyrus.yaml --with-dependencies --unlisted keep
+# hr-core: отсутствующие сущности создаются, существующие пропускаются.
+# Для разрешения dependency_files сохраняйте структуру репозитория.
+meta:
+  id: pyrus.advance-reports
+  name: Pyrus 1С:Бухгалтерия — Авансовые отчёты и подписание документов
+  version: 0.2.0
+  bundle_api: 1
+  requires:
+    pyrus.hr-core: ^0.1.0
+dependency_files:
+  - ../../shared/hr-core/bundle.pyrus.yaml
+entities:
+  refs:
+    forms:
+      - code: PersonCard
+        fields:
+          - code: LastName
+            type: text
+          - code: FirstName
+            type: text
+          - code: MiddleName
+            type: text
+          - code: NationalId
+            type: text
+          - code: EmployeePerson
+            type: person
+  roles:
+    - code: Accountant
+      name: Бухгалтер
+    - code: HR
+      name: HR
+  bots:
+    - code: Integration1C
+      name: Интеграция с 1С:Бухгалтерией
+  catalogs:
+    - code: ExpenseTypes
+      name: Тип расхода
+      columns:
+        - name: Тип расхода
+        - name: Код
+      items:
+        - values:
+            - Суточные
+            - PerDiem
+        - values:
+            - Такси и трансферт
+            - Taxi
+        - values:
+            - Билет на транспорт
+            - Ticket
+        - values:
+            - Аренда авто
+            - CarRental
+        - values:
+            - Расходы на бензин
+            - Fuel
+        - values:
+            - Справка о стоимости проезда
+            - FareCertificate
+        - values:
+            - Багаж
+            - Baggage
+        - values:
+            - Оплата проживания
+            - Lodging
+        - values:
+            - Доплата за ранний заезд / поздний выезд
+            - EarlyCheckInLateCheckOut
+        - values:
+            - Доп. услуги при авиаперелётах
+            - FlightExtras
+        - values:
+            - Туристический налог, курортный сбор, страховка
+            - TravelTaxes
+        - values:
+            - Деловой обед, встреча с партнёрами
+            - BusinessMeal
+        - values:
+            - Дегустация, проверка качества, бракераж
+            - Tasting
+        - values:
+            - Сотовая связь, роуминг
+            - MobileRoaming
+        - values:
+            - Стирка, химчистка, уборка
+            - Laundry
+        - values:
+            - Прочие расходы
+            - Other
+      items_mode: merge
+  forms:
+    - code: AdvanceReport
+      name: Авансовые отчеты
+      folder:
+        - Pyrus 1С:Бухгалтерия
+      fields:
+        - code: ReportType
+          type: multiple_choice
+          name: Тип авансового отчёта
+          info:
+            choices:
+              - Командировка
+              - Иные расходы
+        - code: PersonCard
+          type: form_link
+          name: Карточка физлица
+          info:
+            form: PersonCard
+        - code: EdiOrgDetailsRu
+          type: catalog
+          name: Организация
+          info:
+            catalog:
+              system: edi_org_details
+        - code: Purpose
+          type: text
+          name: Назначение расходов
+          info:
+            visible_when:
+              field: ReportType
+              type: equals
+              value: Иные расходы
+        - code: BusinessTripBeginDate
+          type: date
+          name: Начало командировки
+          info:
+            visible_when:
+              field: ReportType
+              type: equals
+              value: Командировка
+        - code: BusinessTripEndDate
+          type: date
+          name: Окончание командировки
+          info:
+            visible_when:
+              field: ReportType
+              type: equals
+              value: Командировка
+        - code: DailyAllowance
+          type: title
+          name: Суточные
+          info:
+            is_table: true
+            visible_when:
+              field: ReportType
+              type: equals
+              value: Командировка
+          fields:
+            - code: DABeginDate
+              type: date
+              name: С
+            - code: DAEndDate
+              type: date
+              name: По
+            - code: DACountry
+              type: text
+              name: Страна
+            - code: DARate
+              type: money
+              name: Ставка
+              info:
+                currency: RUB
+        - code: Expenses
+          type: title
+          name: Расходы
+          info:
+            is_table: true
+          fields:
+            - code: DocumentDate
+              type: date
+              name: Дата документа
+            - code: DocumentNumber
+              type: text
+              name: Номер документа
+            - code: DocumentType
+              type: text
+              name: Тип документа
+            - code: ExpenseType
+              type: catalog
+              name: Тип расхода
+              info:
+                catalog: ExpenseTypes
+            - code: Description
+              type: text
+              name: Наименование расхода
+            - code: Sum
+              type: money
+              name: Сумма
+              info:
+                currency: RUB
+            - code: SumAcceptedForTax
+              type: money
+              name: Сумма к НУ
+              info:
+                currency: RUB
+        - code: Processing
+          type: divider
+          name: Обработка
+        - code: ExportedTo1S
+          type: checkmark
+          name: Обработано в 1С
+      routing:
+        nodes:
+          - code: Start
+            type: start
+            flows:
+              - to: Rework
+          - code: Rework
+            type: xor
+            flows:
+              - to: EmployeeApproval
+                is_default: true
+          - code: EmployeeApproval
+            type: activity
+            description: Согласование сотрудником
+            participant:
+              task_author: true
+            flows:
+              - to: ManagerApproval
+          - code: ManagerApproval
+            type: activity
+            description: Согласование руководителем
+            participant:
+              department_column:
+                column_name: Руководитель отдела
+                use_task_author: true
+            flows:
+              - to: OrganizationApproval
+          - code: OrganizationApproval
+            type: activity
+            description: Согласование организацией
+            participant:
+              role: Accountant
+            flows:
+              - to: ExportTo1C
+          - code: ExportTo1C
+            type: activity
+            description: Экспорт в 1С
+            participant:
+              role: Integration1C
+            flows:
+              - to: ExportResult
+          - code: ExportResult
+            type: xor
+            flows:
+              - to: Finish
+                if:
+                  field: ExportedTo1S
+                  type: filled
+              - to: Rework
+                is_default: true
+          - code: Finish
+            type: finish
+      settings:
+        title_format: '{0}: {ReportType}, {PersonCard}'
+    - code: DocumentSigning
+      name: Подписание документов
+      folder:
+        - Pyrus 1С:Бухгалтерия
+      fields:
+        - code: EdiDocTypeRu
+          type: text
+          name: Типы некадровых документов
+        - code: EdiDocNum
+          type: text
+          name: Номер документа
+        - code: EdiOrgDetailsRu
+          type: catalog
+          name: Организация
+          info:
+            catalog:
+              system: edi_org_details
+        - code: PersonCard
+          type: form_link
+          name: Карточка физлица
+          info:
+            form: PersonCard
+        - code: EdiDocumentsToSign
+          type: file
+          name: Документ на подпись
+        - code: EdiDocumentName
+          type: text
+          name: Название пакета документов
+        - code: Processing
+          type: divider
+          name: Обработка
+        - code: EmployeePerson
+          type: person
+          name: Сотрудник
+        - code: ExternalStatus
+          type: text
+          name: Статус
+        - code: SignatureDate
+          type: date
+          name: Дата подписи
+        - code: EdiOrgRepSign
+          type: file
+          name: Подпись представителя организации
+        - code: EdiEmployeeSign
+          type: file
+          name: Подпись работника
+        - code: EdiMchdRu
+          type: file
+          name: Файл МЧД
+        - code: EdiHrSignedDocDescriptionRu
+          type: file
+          name: Описание данных электронного документа
+      workflow:
+        steps:
+          - code: OrganizationSignature
+            name: Подпись организации
+            approvers:
+              - role: Accountant
+          - code: EmployeeSignature
+            name: Подпись сотрудника
+      integrations:
+        - type: cryptopro
+          mappings:
+            - code: EdiDocumentsToSign
+              field: EdiDocumentsToSign
+            - code: EdiOrgRepSign
+              field: EdiOrgRepSign
+            - code: EdiMchdRu
+              field: EdiMchdRu
+            - code: SignatureDate
+              field: SignatureDate
+          step: OrganizationSignature
+        - type: goskey
+          step: EmployeeSignature
+          mappings:
+            - code: EdiDocumentName
+              field: EdiDocumentName
+            - code: EdiDocNum
+              field: EdiDocNum
+            - code: EdiOrgDetailsRu
+              field: EdiOrgDetailsRu
+            - code: NationalId
+              link_field: PersonCard
+              external_field: NationalId
+            - code: EdiDocumentsToSign
+              field: EdiDocumentsToSign
+            - code: EdiOrgRepSign
+              field: EdiOrgRepSign
+            - code: EdiMchdRu
+              field: EdiMchdRu
+            - code: EdiEmployeeSign
+              field: EdiEmployeeSign
+            - code: ExternalStatus
+              field: ExternalStatus
+      settings:
+        title_format: '{0}: {EdiDocTypeRu} {EdiDocNum} — {EdiOrgDetailsRu}'
+        access:
+          members:
+            - Accountant
+            - HR
+            - Integration1C

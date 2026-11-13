@@ -1,0 +1,1396 @@
+# Публикация из корня репозитория; добавьте --dry-run для пробного запуска.
+# pyrus publish .\solutions\kedo\bundle.pyrus.yaml --with-dependencies --unlisted keep
+# hr-core: отсутствующие сущности создаются, существующие пропускаются.
+# Для разрешения dependency_files сохраняйте структуру репозитория.
+meta:
+  id: pyrus.kedo
+  name: 'Pyrus КЭДО: несколько мест работы'
+  version: 0.1.1
+  bundle_api: 1
+  requires:
+    pyrus.hr-core: ^0.1.0
+dependency_files:
+  - ../../shared/hr-core/bundle.pyrus.yaml
+entities:
+  refs:
+    forms:
+      - code: PersonCard
+        fields:
+          - code: EmployeePerson
+            type: person
+      - code: EmployeeCard
+        fields:
+          - code: EmployeePerson
+            type: person
+          - code: RejectHrEdm
+            type: checkmark
+  roles:
+    - code: AwaitingNotification
+      name: Ожидание уведомления
+  forms:
+    - code: HrEdiDocs
+      name: Кадровые документы
+      folder:
+        - Pyrus КЭДО v2
+      fields:
+        - code: EdiHrDocTypeRu
+          type: catalog
+          name: Код документа по 578Н
+          info:
+            required:
+              from_step: OrganizationSignature
+            catalog:
+              system: edi_hr_doc_types
+        - code: EdiDocNum
+          type: text
+          name: Номер документа
+          info:
+            read_only: after_create
+            same_row_as_previous: true
+        - code: EdiOrgDetailsRu
+          type: catalog
+          name: Организация
+          info:
+            required:
+              from_step: OrganizationSignature
+            read_only: after_create
+            catalog:
+              system: edi_org_details
+            same_row_as_previous: true
+        - code: EmployeeCard
+          type: form_link
+          name: Подписант
+          info:
+            required:
+              from_step: OrganizationSignature
+            form: EmployeeCard
+            shared_fields:
+              - field: EmployeePerson
+                linked_field: EmployeePerson
+        - code: EdiDocumentsToSign
+          type: file
+          name: Документ на подпись
+          info:
+            required:
+              from_step: OrganizationSignature
+            same_row_as_previous: true
+        - code: Processing
+          type: divider
+          name: Обработка
+        - code: EmployeePerson
+          type: person
+          name: Сотрудник
+        - code: ExternalStatus
+          type: text
+          name: Статус
+        - code: SignatureDate
+          type: date
+          name: Дата подписи
+        - code: EdiOrgRepSign
+          type: file
+          name: Подпись представителя организации
+        - code: EdiEmployeeSign
+          type: file
+          name: Подпись работника
+          info:
+            same_row_as_previous: true
+        - code: EdiMchdRu
+          type: file
+          name: Файл МЧД
+        - code: EdiHrSignedDocDescriptionRu
+          type: file
+          name: Описание данных электронного документа
+          info:
+            same_row_as_previous: true
+      workflow:
+        steps:
+          - code: OrganizationSignature
+            name: Подпись организации
+            approvers:
+              - task_author: true
+          - code: EmployeeSignature
+            name: Подпись сотрудника
+      integrations:
+        - type: cryptopro
+          mappings:
+            - code: EdiDocumentsToSign
+              field: EdiDocumentsToSign
+            - code: EdiOrgRepSign
+              field: EdiOrgRepSign
+            - code: EdiMchdRu
+              field: EdiMchdRu
+          step: OrganizationSignature
+      settings:
+        title_format: '{0}: {EmployeeCard}, {EdiHrDocTypeRu}'
+        template_type: hr_edi_docs
+    - code: Payslip
+      name: Расчетный листок
+      folder:
+        - Pyrus КЭДО v2
+      fields:
+        - code: PersonCard
+          type: form_link
+          name: Получатель
+          info:
+            form: PersonCard
+            shared_fields:
+              - field: EmployeePerson
+                linked_field: EmployeePerson
+        - code: Attachments
+          type: file
+          name: Файлы
+        - code: CreationDate
+          type: creation_date
+          name: Дата создания
+          info:
+            is_form_title: true
+        - code: Processing
+          type: divider
+          name: Обработка
+        - code: EmployeePerson
+          type: person
+          name: Сотрудник
+          info:
+            is_form_title: true
+      workflow:
+        steps:
+          - code: Receipt
+            name: Получение
+            approvers:
+              - contact_field: EmployeePerson
+      settings:
+        title_format: '{0}: {EmployeePerson} {CreationDate}'
+        forbid_add_participants: true
+        disable_users_edit_approvals: true
+        template_type: payslip
+    - code: Vacation
+      name: Отпуск
+      folder:
+        - Pyrus КЭДО v2
+      fields:
+        - code: SyncedFrom1C
+          type: checkmark
+          name: Отпуск по графику
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - type: in_roles
+                      role_codes:
+                        - AwaitingNotification
+        - code: EdiOrgDetailsRu
+          type: catalog
+          name: Организация
+          info:
+            required: on_create
+            read_only:
+              from_step: Request
+            catalog:
+              system: edi_org_details
+            same_row_as_previous: true
+        - code: EmployeeCard
+          type: form_link
+          name: Отпускник
+          info:
+            form: EmployeeCard
+            shared_fields:
+              - field: EmployeePerson
+                linked_field: EmployeePerson
+            fill_type: fill_empty
+        - code: VacationType
+          type: multiple_choice
+          name: Вид отпуска
+          info:
+            required: on_create
+            read_only:
+              from_step: Request
+            is_form_title: true
+            same_row_as_previous: true
+            choices:
+              - Не выбрано
+              - Ежегодный основной оплачиваемый отпуск
+              - Ежегодный дополнительный оплачиваемый отпуск
+              - Отпуск без сохранения заработной платы
+              - Отпуск по беременности и родам
+              - Перенос отпуска
+              - Отпуск по уходу за ребенком
+              - Неполный рабочий день (декрет)
+              - Прекращение отпуска по уходу
+              - Учебный отпуск
+              - Отпуск донора
+            default: Ежегодный основной оплачиваемый отпуск
+        - code: RemainingVacationDays
+          type: number
+          name: Остаток дней отпуска до оформления
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Ежегодный основной оплачиваемый отпуск
+                    - field: VacationType
+                      type: equals
+                      value: Ежегодный дополнительный оплачиваемый отпуск
+                - field: SyncedFrom1C
+                  type: not_filled
+        - code: RescheduledVacation
+          type: form_link
+          name: Какой отпуск переносим
+          info:
+            form: Vacation
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Перенос отпуска
+            shared_fields:
+              - field: EmployeeCard
+                linked_field: EmployeeCard
+              - field: EdiOrgDetailsRu
+                linked_field: EdiOrgDetailsRu
+              - field: VacationType
+                linked_field: VacationType
+              - field: RemainingVacationDays
+                linked_field: RemainingVacationDays
+              - field: PartialReschedule
+                linked_field: PartialReschedule
+              - field: VacationPeriod
+                linked_field: VacationPeriod
+              - field: VacationDuration
+                linked_field: VacationDuration
+              - field: NewStartDate
+                linked_field: NewStartDate
+              - field: NewEndDate
+                linked_field: NewEndDate
+              - field: Reason
+                linked_field: Reason
+              - field: SickLeaveNumber
+                linked_field: SickLeaveNumber
+              - field: ChildFullName
+                linked_field: ChildFullName
+              - field: ChildBirthDate
+                linked_field: ChildBirthDate
+              - field: FatherCertificateNumber
+                linked_field: FatherCertificateNumber
+              - field: ChildAge
+                linked_field: ChildAge
+              - field: ReturnDate
+                linked_field: ReturnDate
+              - field: WorkDays
+                linked_field: WorkDays
+              - field: DaysOff
+                linked_field: DaysOff
+              - field: DailyWorkHours
+                linked_field: DailyWorkHours
+              - field: BreakMinutes
+                linked_field: BreakMinutes
+              - field: WorkStartTime
+                linked_field: WorkStartTime
+              - field: WorkEndTime
+                linked_field: WorkEndTime
+              - field: LunchStartTime
+                linked_field: LunchStartTime
+              - field: LunchEndTime
+                linked_field: LunchEndTime
+              - field: UniversityName
+                linked_field: UniversityName
+              - field: BloodDonationDate
+                linked_field: BloodDonationDate
+              - field: NewDatesStart
+                linked_field: NewDatesStart
+              - field: NewDatesEnd
+                linked_field: NewDatesEnd
+              - field: NewDatesDays
+                linked_field: NewDatesDays
+              - field: Content
+                linked_field: Content
+              - field: Supplement
+                linked_field: Supplement
+              - field: CreationDate
+                linked_field: CreationDate
+              - field: EmployeePerson
+                linked_field: EmployeePerson
+              - field: ReschedulePeriods
+                linked_field: ReschedulePeriods
+            fill_type: fill_empty
+            active_only: true
+        - code: PartialReschedule
+          type: checkmark
+          name: Перенос части отпуска
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Перенос отпуска
+        - code: VacationPeriod
+          type: due_date_time
+          name: Даты отпуска
+          info:
+            is_form_title: true
+            visible_when:
+              type: and
+              children:
+                - type: and
+                  children:
+                    - field: VacationType
+                      type: not_equals
+                      value: Перенос отпуска
+            due_type: period
+        - code: VacationDuration
+          type: number
+          name: Количество дней отпуска
+        - code: NewStartDate
+          type: date
+          name: Дата начала нового отпуска
+          info:
+            required: on_create
+            read_only:
+              from_step: Request
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Перенос отпуска
+                - field: PartialReschedule
+                  type: not_filled
+        - code: NewEndDate
+          type: date
+          name: Дата окончания нового отпуска
+          info:
+            required: on_create
+            read_only:
+              from_step: Request
+            same_row_as_previous: true
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Перенос отпуска
+                - field: PartialReschedule
+                  type: not_filled
+        - code: Reason
+          type: text
+          name: Причина
+          info:
+            required: on_create
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск без сохранения заработной платы
+        - code: SickLeaveNumber
+          type: text
+          name: Номер листка о нетрудоспособности
+          info:
+            required: on_create
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск по беременности и родам
+        - code: ChildFullName
+          type: text
+          name: ФИО ребенка
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск по уходу за ребенком
+        - code: ChildBirthDate
+          type: date
+          name: Дата рождения ребенка
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск по уходу за ребенком
+        - code: BirthCertificateScan
+          type: file
+          name: Скан свидетельства о рождении
+          info:
+            same_row_as_previous: true
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск по уходу за ребенком
+        - code: FatherCertificateNumber
+          type: text
+          name: Номер справки отца с места работы
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск по уходу за ребенком
+        - code: FatherCertificateScan
+          type: file
+          name: Скан справки отца с места работы
+          info:
+            same_row_as_previous: true
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск по уходу за ребенком
+        - code: ChildAge
+          type: number
+          name: Возраст ребенка
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+        - code: ReturnDate
+          type: date
+          name: Дата выхода
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: WorkDays
+          type: multiple_choice
+          name: Рабочие дни
+          info:
+            choices:
+              - Не выбрано
+              - Понедельник
+              - Вторник
+              - Среда
+              - Четверг
+              - Пятница
+              - Суббота
+              - Воскресенье
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: DaysOff
+          type: multiple_choice
+          name: Выходные дни
+          info:
+            same_row_as_previous: true
+            choices:
+              - Не выбрано
+              - Понедельник
+              - Вторник
+              - Среда
+              - Четверг
+              - Пятница
+              - Суббота
+              - Воскресенье
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: DailyWorkHours
+          type: number
+          name: Продолжительность ежедневной работы (ч.)
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: BreakMinutes
+          type: number
+          name: Перерыв для отдыха и питания (мин.)
+          info:
+            same_row_as_previous: true
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: WorkStartTime
+          type: time
+          name: Время начала работы
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: WorkEndTime
+          type: time
+          name: Время окончания работы
+          info:
+            same_row_as_previous: true
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+        - code: LunchStartTime
+          type: time
+          name: Время начала обеда
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: LunchEndTime
+          type: time
+          name: Время окончания обеда
+          info:
+            same_row_as_previous: true
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Неполный рабочий день (декрет)
+                    - field: VacationType
+                      type: equals
+                      value: Прекращение отпуска по уходу
+        - code: UniversityName
+          type: text
+          name: Наименование ВУЗа
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Учебный отпуск
+        - code: UniversityCertificate
+          type: file
+          name: Справка из ВУЗа
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Учебный отпуск
+        - code: MedicalCertificate
+          type: file
+          name: Справка из мед. организации
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск донора
+        - code: BloodDonationDate
+          type: date
+          name: Дата сдачи крови
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Отпуск донора
+        - code: NewDates
+          type: title
+          name: Новые даты
+          info:
+            read_only:
+              from_step: Request
+            is_table: true
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Перенос отпуска
+                - field: PartialReschedule
+                  type: filled
+          fields:
+            - code: NewDatesStart
+              type: date
+              name: Начало
+              info:
+                required: on_create
+                read_only:
+                  from_step: Request
+            - code: NewDatesEnd
+              type: date
+              name: Конец
+              info:
+                required: on_create
+                read_only:
+                  from_step: Request
+            - code: NewDatesDays
+              type: number
+              name: Дней
+              info:
+                read_only:
+                  from_step: Request
+        - code: Processing
+          type: divider
+          name: Обработка
+        - code: AnnualVacationNotice
+          type: checkmark
+          name: Уведомление о ежегодном отпуске
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Ежегодный основной оплачиваемый отпуск
+                - type: or
+                  children:
+                    - type: in_roles
+                      role_codes:
+                        - AwaitingNotification
+        - code: Application
+          type: title
+          name: Группа
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - type: in_roles
+                      role_codes:
+                        - AwaitingNotification
+          fields:
+            - code: Content
+              type: text
+              name: Текст заявления
+            - code: Supplement
+              type: text
+              name: Дополнения
+        - code: CreationDate
+          type: date
+          name: Дата создания
+        - code: VacationType1C
+          type: text
+          name: Вид отпуска из 1С
+          info:
+            visible_when:
+              type: and
+              children:
+                - field: SyncedFrom1C
+                  type: filled
+        - code: EdiHrDocTypeRu
+          type: catalog
+          name: Код документа по 578Н
+          info:
+            catalog:
+              system: edi_hr_doc_types
+            visible_when:
+              type: and
+              children:
+                - field: SyncedFrom1C
+                  type: not_filled
+            default: '25'
+        - code: EdiDocumentsToSign
+          type: file
+          name: Документ на подпись
+          info:
+            same_row_as_previous: true
+            print_form: vacation_application
+            visible_when:
+              type: and
+              children:
+                - field: SyncedFrom1C
+                  type: not_filled
+        - code: EdiHrSignedDocDescriptionRu
+          type: file
+          name: Подпись
+          info:
+            same_row_as_previous: true
+            visible_when:
+              type: and
+              children:
+                - field: SyncedFrom1C
+                  type: not_filled
+        - code: EmployeePerson
+          type: person
+          name: Сотрудник
+          info:
+            is_form_title: true
+        - code: ReschedulePeriods
+          type: text
+          name: Периоды переноса отпуска
+          info:
+            visible_when:
+              type: and
+              children:
+                - type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Перенос отпуска
+      workflow:
+        steps:
+          - code: Notification
+            name: Уведомление
+            approvers:
+              - role: AwaitingNotification
+                if:
+                  type: and
+                  children:
+                    - type: or
+                      children:
+                        - field: VacationType
+                          type: equals
+                          value: Ежегодный основной оплачиваемый отпуск
+                        - field: VacationType
+                          type: equals
+                          value: Ежегодный дополнительный оплачиваемый отпуск
+                    - field: AnnualVacationNotice
+                      type: not_filled
+                    - field: SyncedFrom1C
+                      type: filled
+          - code: Request
+            name: Создание заявки
+          - code: ManagerApproval
+            name: Согласование руководителя
+            approvers:
+              - department_column:
+                  column_name: Руководитель отдела
+                  use_task_author: true
+                if:
+                  field: SyncedFrom1C
+                  type: not_filled
+          - code: HrApproval
+            name: Согласование менеджера по персоналу
+        watchers:
+          - contact_field: EmployeePerson
+            if:
+              field: AnnualVacationNotice
+              type: filled
+          - department_column:
+              column_name: Руководитель отдела
+              contact_field: EmployeePerson
+            if:
+              field: AnnualVacationNotice
+              type: filled
+      print_forms:
+        - code: vacation_application
+          name: 'Заявление на отпуск '
+          template:
+            blocks:
+              - text_align: right
+                content: |
+                  ${EdiOrgDetailsRu:Название}
+                  ${EdiOrgDetailsRu:Адрес}
+
+                  Кому:
+                  Генеральному директору
+                  ${EdiOrgDetailsRu:Генеральный директор}
+
+                  От:
+                  ${EmployeeCard.JobTitle}
+                  ${EmployeeCard.LastName} ${EmployeeCard.FirstName} ${EmployeeCard.MiddleName}
+              - text_align: center
+                content: |+
+                  Заявление
+
+              - text_align: left
+                content: |
+
+                  ${Content}
+              - text_align: right
+                content: |-
+
+
+
+                  Дата: ${Дата создания}
+              - text_align: left
+                content: ${Supplement}
+      integrations:
+        - type: delay_escalation
+          escalation:
+            levels:
+              - minutes_offset: 25920
+                notify:
+                  - AwaitingNotification
+                checkmark_field: AnnualVacationNotice
+                if:
+                  type: or
+                  children:
+                    - field: VacationType
+                      type: equals
+                      value: Ежегодный основной оплачиваемый отпуск
+                    - field: VacationType
+                      type: equals
+                      value: Ежегодный дополнительный оплачиваемый отпуск
+            notification_message: Добрый день!<br>Через 18 дней у вас начинается плановый отпуск.<br>Если вы не планируете идти в отпуск, ОБЯЗАТЕЛЬНО заполните заявление на перенос.
+        - type: simple_electronic_signature
+          mappings:
+            - code: EdiDocumentsToSign
+              field: EdiDocumentsToSign
+            - code: EdiOrgDetailsRu
+              field: EdiOrgDetailsRu
+            - code: EdiHrDocTypeRu
+              field: EdiHrDocTypeRu
+            - code: EdiHrSignedDocDescriptionRu
+              field: EdiHrSignedDocDescriptionRu
+            - code: RejectHrEdm
+              link_field: EmployeeCard
+              external_field: RejectHrEdm
+          step: Request
+          if:
+            field: SyncedFrom1C
+            type: not_filled
+      settings:
+        script: |-
+          form.onChange(['Вид отпуска', 'Даты отпуска', 'Какой отпуск переносим'], true).setValueAsync('Количество дней отпуска', async state => {
+            const [vacationType, due, vacationTask] = state.changes;
+            if (vacationType?.choice_name === "Перенос отпуска") {
+              const taskId = Number(vacationTask.task_id);
+              if (!taskId)
+                return null;
+
+                const tasks = await form.fetchSelfRegister(
+                  (f) => null,
+                  ["Даты отпуска"],
+                  { taskIds: [taskId] }
+                );
+                const prevDates = tasks.tasks?.[0]?.fields?.[0];
+                if (!prevDates) {
+                  return null;
+                }
+
+                //Вычисляем количество дней старого отпуска
+                const days = await form.getDaysCount(prevDates.start_date, prevDates.end_date, { 
+                  exclude: 'nonWorkingHoliday', 
+                  calendar: 'ru' 
+                });
+                return days;
+          ;
+            }
+
+            const days = await form.getDaysCount(due.start_date, due.end_date, { 
+              exclude: 'nonWorkingHoliday', 
+              calendar: 'ru' 
+            });
+
+            return days || null;
+          });
+
+          function daysBetween(d1, d2) {
+            const msInDay = 1000 * 60 * 60 * 24;
+            return Math.floor((d2.getTime() - d1.getTime()) / msInDay);
+          }
+
+          function toRuDate(dateStr) {
+            return dateStr ? new Date(dateStr).toLocaleDateString("ru") : "";
+          }
+
+          form.onChange(['Сотрудник']).setValues(['Остаток дней отпуска до оформления'],
+             state => {
+                 if (state.prev[0] && state.prev[0].value && state.currentStep != 0) return null;
+                 return [state.changes[0]?.vacation_days ?? null];
+             });
+
+
+          form.onChange(['Начало', 'Конец'])
+              .setValueAsync('Дней', async state => {
+                const [start, end] = state.changes;
+                return form.getDaysCount(start.date, end.date, { 
+                  exclude: 'nonWorkingHoliday', 
+                  calendar: 'ru' 
+                });
+          });
+
+          form.onChange(['Начало', 'Конец'])
+            .validate('Конец', state => {
+              const [start, end] = state.changes;
+
+              if (!start || !end)
+                return null;
+
+              if (start.date && end.date && start.date > end.date)
+                return {
+                  errorMessage: 'Не может быть раньше даты начала'
+                };
+
+              return null;
+            });
+
+          form.onChange(['Вид отпуска'])
+            .setValueAsync('EdiHrDocTypeRu', async (state) => {
+              const vacationType = state.changes[0].choice_names[0];
+              const docTypes = {
+                "Перенос отпуска": "Заявление работника о переносе ежегодного оплачиваемого отпуска на другой срок",
+                "Отпуск без сохранения заработной платы": "Заявление работника о предоставлении отпуска без сохранения заработной платы",
+                "Ежегодный дополнительный оплачиваемый отпуск": "Заявление о присоединении к ежегодному оплачиваемому отпуску или использовании отдельно полностью либо по частям ежегодного дополнительного отпуска без сохранения заработной платы"
+              };
+              const docType = docTypes[vacationType] || "Иные документы";
+              const catalog = await form.getCatalog('Коды документов по 578Н');
+              const item = catalog?.find((catalogItem) => catalogItem.columns?.["Наименование документа"] === docType);
+
+              return item 
+                ? { item_id: item.item_id }
+                : { item_name: docType || "Иные документы" }
+            });
+
+          form.onChange([], true)
+            .setValues(['Дата создания', 'EdiDocumentsToSign'], state => {
+              return [
+                { date: new Date().toDateString() },
+                { template_name: 'Zayavlenie_na_otpysk' }
+              ];
+            });
+
+
+          form.onChange(['EmployeeCard'])
+            .setValues(['Дата создания'], state => {
+              return [
+                {date: new Date().toDateString()}
+              ];
+            });
+
+          form.onChange(['Начало', 'Конец', 'Дней', "NewStartDate", "NewEndDate", "Перенос части отпуска"])
+            .setValueAsync('Периоды переноса отпуска', async state => {
+              const [start, end, days, whole_new, whole_end, partially] = state.changes;
+
+              if (!partially?.checked) {
+                if (!whole_new?.date || !whole_end?.date) return null;
+                const duration = await form.getDaysCount(whole_new.date, whole_end.date, {
+                  exclude: 'nonWorkingHoliday',
+                  calendar: 'ru'
+                });
+                return `с ${toRuDate(whole_new.date)} по ${toRuDate(whole_end.date)} (${duration} дн)`;
+              }
+
+              const starts = start?.rows || [];
+              const ends = end?.rows || [];
+              const daysRows = days?.rows || [];
+              const len = Math.max(starts.length, ends.length, daysRows.length);
+
+              const periods = [];
+              for (let i = 0; i < len; i++) {
+                const s = starts[i]?.date;
+                const e = ends[i]?.date;
+                const d = Number(daysRows[i]?.value) || 0;
+                if (s && e && d > 0) {
+                  periods.push(`с ${toRuDate(s)} по ${toRuDate(e)} (${d} дн)`);
+                }
+              }
+
+              const unique = [...new Set(periods.map(p => p.trim()))].filter(Boolean);
+              if (!unique.length) return null;
+
+              return unique.join('; ');
+            });
+
+          form.onChange([
+            'Вид отпуска',
+            'Даты отпуска', 
+            'Количество дней отпуска', 
+            'Причина', 
+            'Периоды переноса отпуска',
+            'ФИО ребенка',
+            'Дата рождения ребенка',
+            'Возраст ребенка',
+            'Рабочие дни',
+            'Выходные дни',
+            'Номер справки отца с места работы',
+            'Продолжительность ежедневной работы (ч.)',
+            'Время начала работы',
+            'Время окончания работы',
+            'Перерыв для отдыха и питания (мин.)',
+            'Время начала работы',
+            'Время окончания работы',
+            'Дата выхода',
+            'Наименование ВУЗа',
+            'Дата сдачи крови',
+            'Какой отпуск переносим'
+          ], true).setValueAsync('Content', async state => {
+            const [
+             vacationType,
+             dates,
+             daysNum,
+             reason,
+             transferPeriods,
+             child,
+             childDate,
+             childAge,
+             workDays,
+             weekendDays,
+             certofFather,
+             timeofWork,
+             startofWork,
+             endofWork,
+             rest,
+             startofFood,
+             endofFood,
+             dateEnter,
+             university,
+             blood,
+             shiftingVacation
+            ] = state.changes;
+            let prevDates = null;
+            if (shiftingVacation?.task_id){
+               let tasks = await form.fetchSelfRegister(f=>null, ["Даты отпуска"], {taskIds: [Number(shiftingVacation.task_id)]});
+               if (tasks.tasks?.length){
+                   prevDates = tasks.tasks[0].fields[0];
+                 }
+             }
+            switch (vacationType.choice_name) {
+              case "Ежегодный основной оплачиваемый отпуск":
+                return (
+                  `Прошу предоставить мне ежегодный основной оплачиваемый отпуск` +
+                  ` с ${toRuDate(dates.start_date)} по ${toRuDate(dates.end_date)} продолжительностью (${daysNum.value ?? 0} дн).`
+                );
+              case "Ежегодный дополнительный оплачиваемый отпуск": 
+                return (
+                  `Прошу предоставить мне дополнительный оплачиваемый отпуск` +
+                  ` с ${toRuDate(dates.start_date)} по ${toRuDate(dates.end_date)} (${daysNum.value ?? 0} дн) в соответствии с установленными условиями труда.`
+                );
+              case "Отпуск без сохранения заработной платы": 
+                return (
+                  `Прошу предоставить мне отпуск без сохранения заработной платы` +
+                  ` с ${toRuDate(dates.start_date)} по ${toRuDate(dates.end_date)} (${daysNum.value ?? 0} дн) по причине: ${reason.text ?? ""}.`
+                );
+              case "Отпуск по беременности и родам": 
+                return (
+                  `Прошу предоставить отпуск по беременности и родам` +
+                  ` с ${toRuDate(dates.start_date)} по ${toRuDate(dates.end_date)} (${daysNum.value ?? 0} дн).`
+                );
+              case "Перенос отпуска": {
+                const durationDays = await form.getDaysCount(prevDates?.start_date, prevDates?.end_date, { 
+                  exclude: 'nonWorkingHoliday', 
+                  calendar: 'ru' 
+                });
+
+                let periodsText = (transferPeriods?.text || '').trim();
+
+                periodsText = periodsText.replace(/^период(?:ы)?:\s*/i, '');
+
+                let periodPart = "";
+                if (periodsText) {
+                  const isMultiple = periodsText.includes(";"); 
+                  periodPart = ` на период${isMultiple ? "ы" : ""} ${periodsText}`;
+                }
+
+                return (
+                  `Прошу перенести мой ежегодный оплачиваемый отпуск, запланированный по графику отпусков` +
+                  ` с ${toRuDate(prevDates?.start_date)} по ${toRuDate(prevDates?.end_date)} (${durationDays} дн)${periodPart}.`
+                );
+              }
+
+              case "Отпуск по уходу за ребенком": 
+                return (
+                  'Прошу предоставить мне'+` с ${toRuDate(dates.start_date)}`+' отпуск по уходу за моим первым ребенком' + ` ${child.text ?? ""}` + 
+                  ` (родился ${toRuDate(childDate.date)}) до достижения им возраста 3х лет с выплатой ежемесячного пособия по уходу за ребенком до достижения им возраста 1,5 лет.`+
+                  '\n\nПриложения: \n1) копия свидетельства о рождении ребенка;'+
+                  '\n2) справка с места работы отца ребенка о том, что он не использует отпуск по уходу за ребенком до 3х лет и не получает ежемесячное пособие по уходу за ребенком до'+ 
+                  ' достижения им возраста 1,5 лет' + ` № ${certofFather.text ?? ""}`
+                );
+              case "Неполный рабочий день (декрет)": 
+                return (
+                  'В соответствии с ч. 3 ст. 256 ТК РФ прошу установить мне' + ` с ${toRuDate(dates.start_date)}`+
+                  ' режим работы на условиях неполного рабочего времени во время нахождения в отпуске по уходу за ребенком до достижения им возраста' +
+                  ` ${childAge.value ?? ""}` + ' лет с сохранением права на получение пособия по государственному социальному страхованию. Прошу установить следующий режим работы:' + 
+                  '\n- трехдневную рабочую неделю (или укажите иную продолжительность рабочей недели): рабочие дни -' + ` ${workDays.choice_names ?? ""}, выходные дни -` + ` ${weekendDays.choice_names ?? ""};` +
+                  '\n- продолжительность ежедневной работы -' + ` ${timeofWork.value ?? ""} ч.;`+
+                  '\n- время начала работы -' + ` ${startofWork.time ?? ""} `+ ', время окончания работы - ' + ` ${endofWork.time ?? ""}.`+
+                  '\n- перерыв для отдыха и питания - '+ ` ${rest.value ?? ""} `+ ' минут, с '+ ` ${startofFood.time ?? ""} `+ ' до '+ ` ${endofFood.time ?? ""}.`
+                );
+              case "Прекращение отпуска по уходу": 
+                return (
+                  'В связи с выходом на работу с ' + ` ${toRuDate(dateEnter.date)} `+ 'прошу прервать отпуск по уходу за ребенком достижения им трех лет. Последним днем отпуска по уходу за ребенком до трех лет прошу считать'+ 
+                `  ${toRuDate(dateEnter.date)} .`+ '\nВ соответствии с ч. 1 ст. 93 ТК РФ прошу установить мне с' + `  ${toRuDate(dateEnter.date)} `+ ' режим работы на условиях неполного рабочего времени с оплатой пропорционально отработанному времени.' +
+                '\nПрошу установить следующий режим работы: \n- пятидневную рабочую неделю: рабочие дни -' + ` ${workDays.choice_names ?? ""};\n выходные дни -` + ` ${weekendDays.choice_names ?? ""};` + 
+                '\n- продолжительность ежедневной работы - ' + ` ${timeofWork.value ?? ""} ч.;`+ '\n- время начала работы -' + ` ${startofWork.time ?? ""} `+ ', время окончания работы - ' + ` ${endofWork.time ?? ""} `+ 
+                '\n- перерыв для отдыха и питания - '+ ` ${rest.value ?? ""} `+ ' минут, с '+ ` ${startofFood.time?? ""} `+ ' до '+ ` ${endofFood.time ?? ""}.`
+                );
+              case "Учебный отпуск":
+                return (
+                  'Прошу предоставить мне учебный отпуск с сохранением среднего заработка с '+ ` ${toRuDate(dates.start_date)} по ${toRuDate(dates.end_date)}  (${daysNum.value ?? 0} дн) на обучение`+
+                ` в  ${university.text ?? ""}. `+'\nСправку-вызов из учебного заведения прилагаю.'
+                 );
+              case "Отпуск донора":
+                return (
+                  'Прошу присоединить к ежегодному оплачиваемому отпуску в период'+ ` с ${toRuDate(dates.start_date)} по ${toRuDate(dates.end_date)}` + ' дополнительный день отдыха'+ 
+                  ', положенный мне согласно статье 186 Трудового кодекса Российской Федерации за день сдачи крови' + ` ${toRuDate(blood.date)}.`+ '\nСправку прилагаю.' 
+                 );
+              default: 
+                return "";
+            }
+          });
+
+          form.onChange([
+            'Вид отпуска',
+            'Номер листка о нетрудоспособности'
+          ], true).setValue('Supplement', state => {
+            const [vacationType, certOfIncapacity] = state.changes;
+            switch (vacationType.choice_name) {
+              case "Отпуск по беременности и родам": 
+                return (
+                  `Приложение: \nЛисток нетрудоспособности № ${certOfIncapacity.text ?? ""}`
+                );
+              default: 
+                return "";
+            }
+          });
+
+          form.onChange(["VacationPeriod","Вид отпуска"], true).validateAsync("VacationPeriod", async state => {
+            const period = state.changes[0];
+            if (state.currentStep > 0 || !period?.start_date) return null;
+
+            const now = new Date();
+            const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // обнуляем время
+            const vacationStart = new Date(period.start_date.getFullYear(), period.start_date.getMonth(), period.start_date.getDate());
+            const vacationType = state.changes[1];
+
+            if (vacationStart < startDate) {
+              return {
+                errorMessage: "Выберите актуальные даты"
+              };
+            }
+
+          // Получаем количество рабочих дней от текущей даты до начала отпуска
+            const workingDays = await form.getDaysCount(startDate, vacationStart, {
+              exclude: 'nonWorking',
+              calendar: 'ru'
+            });
+
+            if (['Учебный отпуск', 'Отпуск по уходу за ребенком', 'Отпуск донора','Отпуск без сохранения заработной платы', 'Отпуск по беременности и родам'].includes(vacationType.choice_name)) {
+                return null;
+            }
+
+            if (workingDays < 5) {
+              return {
+                errorMessage: "Необходимо подавать заявление не менее чем за 5 рабочих дней, для отпуска необходимо согласование"
+              };
+            } else if (workingDays < 14) {
+              return {
+                errorMessage: "Необходимо подавать заявление не менее чем за 14 рабочих дней, для отпуска необходимо согласование",
+                canSave: true
+              };
+            } else {
+              return null;
+            }
+          });
+
+          form.onChange([
+           "NewStartDate",
+           "NewEndDate",
+           "Какой отпуск переносим",
+           "Вид отпуска"
+          ], true).validateAsync("NewEndDate", async (state) => {
+           const [newStart, newEnd, shiftingVacation, vacationType] = state.changes;
+           if (state.currentStep > 0 || vacationType?.choice_name !== "Перенос отпуска") {
+             return null;
+           }
+
+           const taskId = Number(shiftingVacation?.task_id);
+           if (!newStart?.date || !newEnd?.date || !taskId) {
+             return null;
+           }
+
+
+           const tasks = await form.fetchSelfRegister(
+             (f) => null,
+             ["Даты отпуска"],
+             { taskIds: [taskId] }
+           );
+           
+           const prevDates = tasks.tasks?.[0]?.fields?.[0];
+           
+           if (!prevDates) {
+             return null;
+           }
+
+
+            const newStartDate = new Date(newStart.date);
+            const newEndDate = new Date(newEnd.date);
+
+            if (newStartDate?.getTime() > newEndDate?.getTime())
+              return {
+               errorMessage: "Дата конца отпуска предшествует дате начала"
+             };
+
+
+            const oldVacationDayCount = await form.getDaysCount(prevDates.start_date, prevDates.end_date, { 
+              exclude: 'nonWorkingHoliday', 
+              calendar: 'ru' 
+            });
+            const newVacationDayCount = await form.getDaysCount(newStartDate, newEndDate, { 
+              exclude: 'nonWorkingHoliday', 
+              calendar: 'ru' 
+            });
+
+           // Сравниваем количество дней
+           if (oldVacationDayCount !== newVacationDayCount) {
+             return {
+               errorMessage: "Количество дней старого отпуска не совпадает с количеством дней нового. Количество дней должно быть " + oldVacationDayCount + ", выбрано " + newVacationDayCount
+             };
+           }
+
+           return null;
+          });
+
+          form.onChange([
+           "Начало",
+           "Конец",
+           "Дней",
+           "Какой отпуск переносим",
+           "Перенос части отпуска",
+           "Вид отпуска"
+          ], true).validateAsync("Дней", async (state) => {
+           const [start, end, days, shiftingVacation, partially, vacationType] = state.changes;
+
+           // Проверяем условия срабатывания
+           if (state.currentStep > 0 || vacationType?.choice_name !== "Перенос отпуска" || !partially?.checked) {
+             return null;
+           }
+
+           if (!shiftingVacation?.task_id) {
+             return null;
+           }
+
+           // Получаем данные предыдущего отпуска
+           const tasks = await form.fetchSelfRegister(
+             (f) => null,
+             ["Даты отпуска"],
+             { taskIds: [Number(shiftingVacation.task_id)] }
+           );
+           
+           const prevDates = tasks.tasks?.[0]?.fields?.[0];
+           if (!prevDates) return null;
+
+           // Вычисляем исходную продолжительность
+            const originalDays = await form.getDaysCount(prevDates.start_date, prevDates.end_date, { 
+              exclude: 'nonWorkingHoliday', 
+              calendar: 'ru' 
+            });
+
+           // Считаем сумму дней в таблице
+           let totalDays = 0;
+           if (days?.rows) {
+             days.rows.forEach(row => {
+               if (row.value > 0) {
+                 totalDays += Number(row.value);
+               }
+             });
+           }
+
+           // Простая проверка без расчета разницы
+           if (totalDays !== originalDays) {
+             return {
+               errorMessage: "Сумма дней в таблице не совпадает с продолжительностью переносимого отпуска",
+             };
+           }
+
+           return null;
+          });
+        title_format: '{0}: {EmployeePerson} {VacationType} {VacationPeriod}'
+        access:
+          members:
+            - AwaitingNotification
+          task_access:
+            - participant:
+                contact_field: EmployeePerson
+        template_type: vacation

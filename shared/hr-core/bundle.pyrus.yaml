@@ -1,0 +1,123 @@
+# Общая зависимость: создаётся автоматически при publish решения с --with-dependencies.
+# Существующие сущности при этом пропускаются; для обновления публикуйте этот файл явно.
+# pyrus publish .\shared\hr-core\bundle.pyrus.yaml --unlisted keep --dry-run
+meta:
+  id: pyrus.hr-core
+  name: Pyrus — Сотрудники
+  version: 0.1.0
+  bundle_api: 1
+  exports:
+    forms:
+      PersonCard:
+        - LastName
+        - FirstName
+        - MiddleName
+        - NationalId
+        - EmployeePerson
+      EmployeeCard:
+        - PersonCard
+        - EdiOrgDetailsRu
+        - EmployeeNumberRu
+        - JobTitle
+        - EmployeePerson
+        - RejectHrEdm
+entities:
+  forms:
+    - code: PersonCard
+      name: Карточка физлица
+      folder:
+        - Pyrus — Сотрудники
+      fields:
+        - code: LastName
+          type: text
+          name: Фамилия
+        - code: FirstName
+          type: text
+          name: Имя
+          info:
+            same_row_as_previous: true
+        - code: MiddleName
+          type: text
+          name: Отчество
+          info:
+            same_row_as_previous: true
+        - code: NationalId
+          type: text
+          name: СНИЛС
+          info:
+            mask: 000-000-000 00
+        - code: EmployeePerson
+          type: person
+          name: Сотрудник
+        - code: Passport
+          type: title
+          name: Паспорт
+          fields:
+            - code: PassportNumber
+              type: text
+              name: Серия и номер
+            - code: PassportIssueDate
+              type: date
+              name: Дата выдачи
+            - code: PassportIssuedBy
+              type: text
+              name: Кем выдан
+            - code: PassportAuthorityCode
+              type: text
+              name: Код подразделения
+            - code: RegistrationAddress
+              type: text
+              name: Адрес регистрации
+      workflow:
+        steps:
+          - code: Filling
+            name: Заполнение
+            approvers:
+              - task_author: true
+      settings:
+        title_format: '{0}: {LastName} {FirstName} {MiddleName}'
+    - code: EmployeeCard
+      name: Карточка сотрудника
+      folder:
+        - Pyrus — Сотрудники
+      workflow:
+        steps:
+          - code: Filling
+            name: Заполнение
+            approvers:
+              - task_author: true
+      settings:
+        title_format: '{0}: {EmployeePerson}, {JobTitle}'
+        template_type: employee_card
+      fields:
+        - code: PersonCard
+          type: form_link
+          name: Физлицо
+          info:
+            required: on_create
+            form: PersonCard
+            shared_fields:
+              - field: EmployeePerson
+                linked_field: EmployeePerson
+        - code: EdiOrgDetailsRu
+          type: catalog
+          name: Организация
+          info:
+            required: on_create
+            catalog:
+              system: edi_org_details
+        - code: EmployeeNumberRu
+          type: text
+          name: Табельный номер
+          info:
+            required: on_create
+            same_row_as_previous: true
+        - code: JobTitle
+          type: text
+          name: Должность
+        - code: EmployeePerson
+          type: person
+          name: Сотрудник
+        - code: RejectHrEdm
+          type: checkmark
+          name: Нет согласия на КЭДО

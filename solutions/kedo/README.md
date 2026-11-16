@@ -8,8 +8,8 @@
 
 ```powershell
 pyrus validate .\solutions\kedo\bundle.pyrus.yaml
-pyrus publish .\solutions\kedo\bundle.pyrus.yaml --with-dependencies --unlisted keep --dry-run
-pyrus publish .\solutions\kedo\bundle.pyrus.yaml --with-dependencies --unlisted keep
+pyrus publish .\solutions\kedo\bundle.pyrus.yaml --unlisted keep --dry-run
+pyrus publish .\solutions\kedo\bundle.pyrus.yaml --unlisted keep
 ```
 
 Выполняйте команды по очереди. Если пробная публикация сообщает об ошибке, устраните её перед установкой. Исключение — непроверенные ссылки на ещё не созданные зависимости: см. [ограничения](../../README.md#ограничения).

@@ -29,13 +29,13 @@ cd pyrus-solutions-ru
 **Windows x64 — PowerShell:**
 
 ```powershell
-irm https://pyrus.com/Binaries/pyrus-cli/latest/install.ps1 | iex
+irm https://pyrus.com/pyrus-cli/install.ps1 | iex
 ```
 
 **macOS и Linux — терминал:**
 
 ```sh
-curl -fsSL https://pyrus.com/Binaries/pyrus-cli/latest/install.sh | bash
+curl -fsSL https://pyrus.com/pyrus-cli/install.sh | bash
 ```
 
 Для обновления CLI повторите команду установки.

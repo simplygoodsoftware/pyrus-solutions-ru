@@ -1,6 +1,6 @@
-# Общая зависимость: создаётся автоматически при publish решения с --with-dependencies.
+# Общая зависимость: создаётся автоматически при publish решения.
 # Существующие сущности при этом пропускаются; для обновления публикуйте этот файл явно.
-# pyrus publish .\shared\hr-core\bundle.pyrus.yaml --unlisted keep --dry-run
+# pyrus publish .\shared\hr-core\bundle.pyrus.yaml --dry-run
 meta:
   id: pyrus.hr-core
   name: Pyrus — Сотрудники

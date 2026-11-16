@@ -1,5 +1,5 @@
 # Публикация из корня репозитория; добавьте --dry-run для пробного запуска.
-# pyrus publish .\solutions\advance-report\bundle.pyrus.yaml --with-dependencies --unlisted keep
+# pyrus publish .\solutions\advance-report\bundle.pyrus.yaml
 # hr-core: отсутствующие сущности создаются, существующие пропускаются.
 # Для разрешения dependency_files сохраняйте структуру репозитория.
 meta:

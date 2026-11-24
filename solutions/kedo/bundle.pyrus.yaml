@@ -5,7 +5,7 @@
 meta:
   id: pyrus.kedo
   name: 'Pyrus КЭДО: несколько мест работы'
-  version: 0.1.1
+  version: 0.1.2
   bundle_api: 1
   requires:
     pyrus.hr-core: ^0.1.0
@@ -854,7 +854,7 @@ entities:
             name: Согласование руководителя
             approvers:
               - department_column:
-                  column_name: Руководитель отдела
+                  head: true
                   use_task_author: true
                 if:
                   field: SyncedFrom1C
@@ -867,7 +867,7 @@ entities:
               field: AnnualVacationNotice
               type: filled
           - department_column:
-              column_name: Руководитель отдела
+              head: true
               contact_field: EmployeePerson
             if:
               field: AnnualVacationNotice

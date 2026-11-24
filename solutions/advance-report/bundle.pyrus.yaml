@@ -5,7 +5,7 @@
 meta:
   id: pyrus.advance-reports
   name: Pyrus 1С:Бухгалтерия — Авансовые отчёты и подписание документов
-  version: 0.2.0
+  version: 0.2.1
   bundle_api: 1
   requires:
     pyrus.hr-core: ^0.1.0
@@ -224,7 +224,7 @@ entities:
             description: Согласование руководителем
             participant:
               department_column:
-                column_name: Руководитель отдела
+                head: true
                 use_task_author: true
             flows:
               - to: OrganizationApproval

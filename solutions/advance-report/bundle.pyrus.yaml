@@ -5,13 +5,21 @@
 meta:
   id: pyrus.advance-reports
   name: Pyrus 1С:Бухгалтерия — Авансовые отчёты и подписание документов
-  version: 0.2.1
+  version: 0.2.3
   bundle_api: 1
   requires:
     pyrus.hr-core: ^0.1.0
 dependency_files:
   - ../../shared/hr-core/bundle.pyrus.yaml
 entities:
+  extends:
+    forms:
+      - code: PersonCard
+        settings:
+          access:
+            task_access:
+              - participant:
+                  role: Integration1C
   refs:
     forms:
       - code: PersonCard
@@ -222,19 +230,39 @@ entities:
           - code: ManagerApproval
             type: activity
             description: Согласование руководителем
+            actions: [approve, reject]
             participant:
               department_column:
                 head: true
                 use_task_author: true
             flows:
+              - to: ManagerDecision
+          - code: ManagerDecision
+            type: xor
+            flows:
+              - to: Rework
+                if:
+                  type: node_rejected
+                  node_codes: [ManagerApproval]
               - to: OrganizationApproval
+                is_default: true
           - code: OrganizationApproval
             type: activity
             description: Согласование организацией
+            actions: [approve, reject]
             participant:
               role: Accountant
             flows:
+              - to: OrganizationDecision
+          - code: OrganizationDecision
+            type: xor
+            flows:
+              - to: Rework
+                if:
+                  type: node_rejected
+                  node_codes: [OrganizationApproval]
               - to: ExportTo1C
+                is_default: true
           - code: ExportTo1C
             type: activity
             description: Экспорт в 1С
